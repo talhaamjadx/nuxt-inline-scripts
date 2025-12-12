@@ -78,6 +78,18 @@ export function extractInlineScript(html: string, options: { output: string }) {
   return html;
 }
 
+// Normalize different body shapes to a string for post-processing
+function toHtmlString(body: unknown): string | null {
+  if (typeof body === 'string') {
+    return body;
+  }
+  // Buffer or Uint8Array
+  if (body instanceof Uint8Array) {
+    return Buffer.from(body).toString();
+  }
+  return null;
+}
+
 export default defineNitroPlugin(async nitroApp => {
   nitroApp.hooks.hook(
     // @ts-ignore
@@ -115,6 +127,7 @@ export default defineNitroPlugin(async nitroApp => {
 
   // Fallback pass on the final rendered HTML to catch scripts injected after render:html
   nitroApp.hooks.hook('render:response', response => {
+    console.log('Running final inline script extraction pass');
     const contentType =
       // Headers can be a plain object or a Headers instance
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -126,11 +139,21 @@ export default defineNitroPlugin(async nitroApp => {
       return;
     }
 
-    if (typeof response.body === 'string') {
-      response.body = extractInlineScript(
-        response.body,
-        INLINE_SCRIPTS_DEFAULT_OPTIONS
-      );
+    const bodyString = toHtmlString(response.body as unknown);
+    if (!bodyString) {
+      return;
+    }
+
+    const transformed = extractInlineScript(
+      bodyString,
+      INLINE_SCRIPTS_DEFAULT_OPTIONS
+    );
+
+    // Preserve original body type
+    if (response.body instanceof Uint8Array) {
+      response.body = Buffer.from(transformed);
+    } else {
+      response.body = transformed;
     }
   });
 });
