@@ -42,9 +42,14 @@ export function extractInlineScript(html: string, options: { output: string }) {
       continue;
     }
 
-    // Skip scripts containing Nuxt internal imports (e.g., #entry, #imports, #build)
+    // Skip scripts containing Nuxt internal imports (e.g., #entry, #imports, #build, #app)
     // These use bare specifiers that only work in the bundled context
-    if (/#[a-zA-Z]/.test(scriptContent)) {
+    // Match patterns like: from "#entry" or import("#entry") or require("#entry")
+    if (
+      /["']#(entry|imports|build|app|internal|components|pages|layouts)\b/.test(
+        scriptContent
+      )
+    ) {
       continue;
     }
 
