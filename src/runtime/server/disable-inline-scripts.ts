@@ -112,5 +112,26 @@ export default defineNitroPlugin(async nitroApp => {
       }
     }
   );
+
+  // Fallback pass on the final rendered HTML to catch scripts injected after render:html
+  nitroApp.hooks.hook('render:response', response => {
+    const contentType =
+      // Headers can be a plain object or a Headers instance
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (response as any)?.headers?.['content-type'] ||
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (response as any)?.headers?.get?.('content-type');
+
+    if (contentType && !String(contentType).includes('text/html')) {
+      return;
+    }
+
+    if (typeof response.body === 'string') {
+      response.body = extractInlineScript(
+        response.body,
+        INLINE_SCRIPTS_DEFAULT_OPTIONS
+      );
+    }
+  });
 });
 //
