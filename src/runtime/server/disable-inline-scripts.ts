@@ -18,43 +18,35 @@ export function extractInlineScript(html: string, options: { output: string }) {
     // dev mode skip
     return html;
   }
-  
+
   const inlineScript = html.matchAll(/<script( [^>]*)?>([\s\S]*?)<\/script>/g);
   const { output } = options;
   const scripts = Array.from(inlineScript);
-  
+
   for (const [script, attributes, scriptContent] of scripts) {
     // Skip empty scripts
     if (!scriptContent || !scriptContent.trim()) {
       continue;
     }
-    
+
     // Skip scripts that already have a src attribute
     if (attributes && attributes.includes('src=')) {
       continue;
     }
-    
-    // Validate that the content looks like JavaScript (basic check)
-    const trimmedContent = scriptContent.trim();
-    // Skip content that looks like JSON objects but isn't valid JS
-    if (trimmedContent.startsWith('{') && trimmedContent.endsWith('}')) {
-      try {
-        // Try to parse as JSON - if it's pure JSON, it's likely not valid standalone JS
-        const parsed = JSON.parse(trimmedContent);
-        // If it's a JSON object with no executable code, skip it
-        if (typeof parsed === 'object' && !trimmedContent.includes('=') && !trimmedContent.includes('(')) {
-          continue;
-        }
-      } catch (e) {
-        // Not JSON, which is fine - it's probably valid JS
-      }
+
+    // Skip JSON-LD and other data scripts (type="application/ld+json", type="application/json", etc.)
+    if (
+      attributes &&
+      /type\s*=\s*["']application\/(ld\+)?json["']/i.test(attributes)
+    ) {
+      continue;
     }
-    
+
     const hash = generateHash(scriptContent);
     const filename = `${hash}.js`;
     let filePath = join(output, filename);
     const path = `${INTERNAL_PREFIX}/${filename}`;
-    
+
     if (!existsSync(filePath)) {
       // if no directory, create it
       if (!existsSync(dirname(filePath))) {
@@ -62,12 +54,12 @@ export function extractInlineScript(html: string, options: { output: string }) {
       }
       writeFileSync(filePath, scriptContent);
     }
-    
+
     // Preserve script attributes if they exist
-    const newScript = attributes 
+    const newScript = attributes
       ? `<script${attributes} src="${path}"></script>`
       : `<script src="${path}"></script>`;
-    
+
     // Replace this specific script tag (escape special regex characters)
     const escapedScript = script.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     html = html.replace(new RegExp(escapedScript), newScript);
