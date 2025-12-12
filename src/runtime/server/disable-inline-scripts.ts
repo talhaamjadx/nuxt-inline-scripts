@@ -80,6 +80,7 @@ export function extractInlineScript(html: string, options: { output: string }) {
 
 // Normalize different body shapes to a string for post-processing
 function toHtmlString(body: unknown): string | null {
+  if (!body) return null;
   if (typeof body === 'string') {
     return body;
   }
@@ -138,7 +139,10 @@ export default defineNitroPlugin(async nitroApp => {
       return;
     }
 
-    const bodyString = toHtmlString(response.body as unknown);
+    const bodyString = toHtmlString(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (response as any)?.body ?? (response as any)?._data
+    );
     if (!bodyString) {
       return;
     }
