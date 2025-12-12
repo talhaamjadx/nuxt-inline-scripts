@@ -127,7 +127,6 @@ export default defineNitroPlugin(async nitroApp => {
 
   // Fallback pass on the final rendered HTML to catch scripts injected after render:html
   nitroApp.hooks.hook('render:response', response => {
-    console.log('Running final inline script extraction pass');
     const contentType =
       // Headers can be a plain object or a Headers instance
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -150,11 +149,18 @@ export default defineNitroPlugin(async nitroApp => {
     );
 
     // Preserve original body type
-    if (response.body instanceof Uint8Array) {
-      response.body = Buffer.from(transformed);
-    } else {
-      response.body = transformed;
-    }
+    const nextBody =
+      response.body instanceof Uint8Array
+        ? Buffer.from(transformed)
+        : transformed;
+
+    // Nitro/H3 responses can use both body and _data; set both to be safe
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (response as any).body = nextBody;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (response as any)._data = nextBody;
+
+    return response;
   });
 });
 //
