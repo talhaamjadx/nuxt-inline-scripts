@@ -42,6 +42,12 @@ export function extractInlineScript(html: string, options: { output: string }) {
       continue;
     }
 
+    // Skip scripts containing Nuxt internal imports (e.g., #entry, #imports, #build)
+    // These use bare specifiers that only work in the bundled context
+    if (/#[a-zA-Z]/.test(scriptContent)) {
+      continue;
+    }
+
     const hash = generateHash(scriptContent);
     const filename = `${hash}.js`;
     let filePath = join(output, filename);
